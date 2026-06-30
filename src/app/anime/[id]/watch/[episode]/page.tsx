@@ -32,7 +32,11 @@ export default async function WatchPage({ params }: WatchPageProps) {
   if (!data?.data) notFound()
 
   const anime = data.data
-  const sources = await getEpisodeSources(String(anime.mal_id), anime.title, episodeNum)
+  const externalSources = await getEpisodeSources(String(anime.mal_id), anime.title, episodeNum)
+
+  const trailerEmbed = anime.trailer?.embed_url
+    ? anime.trailer.embed_url.replace('autoplay=1', 'autoplay=0')
+    : null
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
@@ -41,7 +45,11 @@ export default async function WatchPage({ params }: WatchPageProps) {
         <p className="text-muted-foreground text-sm">Episodio {episodeNum}</p>
       </div>
 
-      <VideoPlayer sources={sources} title={`${anime.title} - Ep ${episodeNum}`} />
+      <VideoPlayer
+        trailerUrl={trailerEmbed}
+        externalSources={externalSources}
+        title={`${anime.title} - Ep ${episodeNum}`}
+      />
 
       <div className="flex justify-between items-center text-sm">
         <Link href={`/anime/${id}`} className="text-primary hover:underline">
@@ -53,9 +61,11 @@ export default async function WatchPage({ params }: WatchPageProps) {
               ← Ep {episodeNum - 1}
             </Link>
           )}
-          <Link href={`/anime/${id}/watch/${episodeNum + 1}`} className="text-primary hover:underline">
-            Ep {episodeNum + 1} →
-          </Link>
+          {(!anime.episodes || episodeNum < anime.episodes) && (
+            <Link href={`/anime/${id}/watch/${episodeNum + 1}`} className="text-primary hover:underline">
+              Ep {episodeNum + 1} →
+            </Link>
+          )}
         </div>
       </div>
     </div>

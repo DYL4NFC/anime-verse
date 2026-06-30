@@ -7,7 +7,7 @@ function handleError(status: number): never {
 }
 
 export async function fetchTopAnime(page: number = 1) {
-  const res = await fetch(`${BASE}/top/anime?limit=50&page=${page}`, {
+  const res = await fetch(`${BASE}/top/anime?limit=25&page=${page}`, {
     next: { revalidate: 86400 },
   })
   if (!res.ok) handleError(res.status)
@@ -31,7 +31,7 @@ export async function fetchAnimeEpisodes(id: string) {
 }
 
 export async function fetchUpcomingAnime() {
-  const res = await fetch(`${BASE}/seasons/upcoming?limit=50`, {
+  const res = await fetch(`${BASE}/seasons/upcoming?limit=25`, {
     next: { revalidate: 86400 },
   })
   if (!res.ok) handleError(res.status)

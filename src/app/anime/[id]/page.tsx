@@ -1,4 +1,4 @@
-import { fetchAnimeById } from '@/lib/jikanApi'
+import { fetchAnimeById, fetchAnimeEpisodes } from '@/lib/jikanApi'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -43,13 +43,16 @@ export default async function AnimeDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const episodes = Array.from({ length: Math.min(anime.episodes || 12, 24) }, (_, i) => ({
-    mal_id: i + 1,
-    title: `Episodio ${i + 1}`,
-    aired: null,
-    filler: false,
-    recap: false,
-  }))
+  const episodesData = await fetchAnimeEpisodes(id).catch(() => null)
+  const episodes = episodesData?.data?.length
+    ? episodesData.data
+    : Array.from({ length: anime.episodes || 12 }, (_, i) => ({
+        mal_id: i + 1,
+        title: `Episodio ${i + 1}`,
+        aired: null,
+        filler: false,
+        recap: false,
+      }))
 
   return (
     <div className="space-y-8">
@@ -96,7 +99,7 @@ export default async function AnimeDetailPage({ params }: PageProps) {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            {anime.genres.map((genre: any) => (
+            {(anime.genres || []).map((genre: any) => (
               <span key={genre.mal_id} className="text-xs bg-secondary px-2 py-1 rounded">
                 {genre.name}
               </span>
@@ -113,7 +116,7 @@ export default async function AnimeDetailPage({ params }: PageProps) {
       <div>
         <h2 className="text-xl font-semibold mb-4">Episodios</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-          {episodes.map((ep) => (
+          {episodes.map((ep: any) => (
             <Link
               key={ep.mal_id}
               href={`/anime/${id}/watch/${ep.mal_id}`}

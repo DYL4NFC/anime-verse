@@ -55,7 +55,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">
-        {query ? `Resultados para &quot;${query}&quot;` : 'Buscar anime'}
+        {query ? `Resultados para "${query}"` : 'Buscar anime'}
       </h1>
 
       <SearchFilters genres={allGenres} />
