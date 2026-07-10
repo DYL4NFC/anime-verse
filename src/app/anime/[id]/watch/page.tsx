@@ -1,0 +1,75 @@
+import { fetchAnimeById } from '@/lib/jikanApi'
+import { getEpisodeSources } from '@/lib/videoApi'
+import { notFound } from 'next/navigation'
+import { VideoPlayer } from '@/components/VideoPlayer'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
+import type { Metadata } from 'next'
+
+interface WatchPageProps {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ ep?: string }>
+}
+
+export async function generateMetadata({ params, searchParams }: WatchPageProps): Promise<Metadata> {
+  const { id } = await params
+  const { ep } = await searchParams
+  const epNum = parseInt(ep || '1', 10)
+  try {
+    const data = await fetchAnimeById(id)
+    const anime = data.data
+    return {
+      title: `${anime.title} - Episodio ${epNum} - AnimeVerse`,
+      description: `Viendo ${anime.title} episodio ${epNum} en AnimeVerse`,
+    }
+  } catch {
+    return { title: 'Reproductor - AnimeVerse' }
+  }
+}
+
+export default async function WatchPage({ params, searchParams }: WatchPageProps) {
+  const { id } = await params
+  const { ep } = await searchParams
+  const epNum = parseInt(ep || '1', 10)
+
+  let anime
+  try {
+    const data = await fetchAnimeById(id)
+    anime = data.data
+  } catch {
+    notFound()
+  }
+
+  const trailerUrl = anime.trailer?.embed_url || null
+
+  let externalSources: { name: string; url: string }[] = []
+  try {
+    const sources = await getEpisodeSources(String(id), anime.title, epNum)
+    externalSources = sources
+  } catch {
+    externalSources = []
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href={`/anime/${id}`}>
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Volver a la ficha
+          </Button>
+        </Link>
+        <h1 className="text-xl font-bold truncate">
+          {anime.title} — Episodio {epNum}
+        </h1>
+      </div>
+
+      <VideoPlayer
+        trailerUrl={trailerUrl}
+        externalSources={externalSources}
+        title={`${anime.title} Ep ${epNum}`}
+      />
+    </div>
+  )
+}

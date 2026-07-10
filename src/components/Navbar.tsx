@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, Dices } from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export function Navbar() {
   return (
@@ -37,6 +38,7 @@ export function Navbar() {
               <Dices className="h-4 w-4" />
             </Button>
           </Link>
+          <ThemeToggle />
         </div>
       </div>
       <div className="container md:hidden pb-3 px-4">

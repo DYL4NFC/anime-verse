@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,18 +15,22 @@ export function SearchFilters({ genres }: SearchFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([])
-  const [selectedYear, setSelectedYear] = useState<string>('')
-  const [selectedStatus, setSelectedStatus] = useState<string>('')
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(
+    () => searchParams.get('genres')?.split(',').filter(Boolean) ?? []
+  )
+  const [selectedYear, setSelectedYear] = useState<string>(
+    () => searchParams.get('year') ?? ''
+  )
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    () => searchParams.get('status') ?? ''
+  )
+  const [showAllGenres, setShowAllGenres] = useState(false)
 
-  useEffect(() => {
-    const genresParam = searchParams.get('genres')
-    if (genresParam) setSelectedGenres(genresParam.split(','))
-    const yearParam = searchParams.get('year')
-    if (yearParam) setSelectedYear(yearParam)
-    const statusParam = searchParams.get('status')
-    if (statusParam) setSelectedStatus(statusParam)
-  }, [searchParams])
+  const toggleGenre = (id: string) => {
+    setSelectedGenres(prev =>
+      prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]
+    )
+  }
 
   const applyFilters = () => {
     const params = new URLSearchParams()
@@ -47,49 +51,59 @@ export function SearchFilters({ genres }: SearchFiltersProps) {
     router.push(query ? `/search?q=${encodeURIComponent(query)}` : '/search')
   }
 
+  const visibleGenres = showAllGenres ? genres : genres.slice(0, 12)
+
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="text-sm font-medium mb-1 block">Género</label>
-          <Select
-            onValueChange={(value) => {
-              setSelectedGenres(prev =>
-                prev.includes(value) ? prev.filter(g => g !== value) : [...prev, value]
-              )
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar género" />
-            </SelectTrigger>
-            <SelectContent>
-              {genres.map((genre) => (
-                <SelectItem key={genre.mal_id} value={String(genre.mal_id)}>
-                  {genre.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedGenres.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {selectedGenres.map(id => {
-                const genre = genres.find(g => String(g.mal_id) === id)
-                return genre ? (
-                  <span key={id} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded flex items-center gap-1">
-                    {genre.name}
-                    <button
-                      onClick={() => setSelectedGenres(prev => prev.filter(g => g !== id))}
-                      className="hover:text-red-500"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ) : null
-              })}
-            </div>
-          )}
+      <div>
+        <label className="text-sm font-medium mb-2 block">Géneros</label>
+        <div className="flex flex-wrap gap-1.5">
+          {visibleGenres.map((genre) => {
+            const isSelected = selectedGenres.includes(String(genre.mal_id))
+            return (
+              <button
+                key={genre.mal_id}
+                onClick={() => toggleGenre(String(genre.mal_id))}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {genre.name}
+              </button>
+            )
+          })}
         </div>
+        {genres.length > 12 && (
+          <button
+            onClick={() => setShowAllGenres(!showAllGenres)}
+            className="text-xs text-primary hover:underline mt-2"
+          >
+            {showAllGenres ? 'Ver menos' : `Ver todos (${genres.length})`}
+          </button>
+        )}
+        {selectedGenres.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {selectedGenres.map(id => {
+              const genre = genres.find(g => String(g.mal_id) === id)
+              return genre ? (
+                <span key={id} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded flex items-center gap-1">
+                  {genre.name}
+                  <button
+                    onClick={() => toggleGenre(id)}
+                    className="hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              ) : null
+            })}
+          </div>
+        )}
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium mb-1 block">Año</label>
           <Select onValueChange={setSelectedYear} value={selectedYear || undefined}>

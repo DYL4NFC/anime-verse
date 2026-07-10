@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import type { Anime } from '@/types/anime'
 
 interface HomePageProps {
   searchParams: Promise<{ page?: string }>
@@ -25,7 +26,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <div>
       <h1 className="text-2xl font-bold mb-6">Animes Populares</h1>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-        {animes.map((anime: any) => (
+        {animes.map((anime: Anime) => (
           <AnimeCard key={anime.mal_id} anime={anime} />
         ))}
       </div>

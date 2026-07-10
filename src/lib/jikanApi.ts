@@ -22,8 +22,8 @@ export async function fetchAnimeById(id: string) {
   return res.json()
 }
 
-export async function fetchAnimeEpisodes(id: string) {
-  const res = await fetch(`${BASE}/anime/${id}/episodes`, {
+export async function fetchAnimeEpisodes(id: string, page: number = 1) {
+  const res = await fetch(`${BASE}/anime/${id}/episodes?page=${page}`, {
     next: { revalidate: 3600 },
   })
   if (!res.ok) handleError(res.status)

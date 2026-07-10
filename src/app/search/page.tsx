@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import type { Anime } from '@/types/anime'
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string; page?: string; genres?: string; year?: string; status?: string }>
@@ -36,7 +37,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const genresData = await fetchGenres()
   const allGenres = genresData.data || []
 
-  let results: any[] = []
+  let results: Anime[] = []
   let error: string | null = null
   let hasNextPage = false
 
@@ -73,7 +74,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       {results.length > 0 && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-6">
-            {results.map((anime: any) => (
+            {results.map((anime: Anime) => (
               <AnimeCard key={anime.mal_id} anime={anime} />
             ))}
           </div>

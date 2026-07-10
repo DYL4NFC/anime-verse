@@ -1,7 +1,4 @@
-const aniplay = require('aniplay') as {
-  fetchHD3Stream: (title: string, episode: number) => Promise<string>
-  fetchHD6Stream: (title: string, episode: number) => Promise<string>
-}
+import { fetchHD3Stream, fetchHD6Stream } from 'aniplay'
 
 export async function getEpisodeSources(_malId: string, animeTitle: string, episode: number) {
   const safeTitle = animeTitle
@@ -10,8 +7,8 @@ export async function getEpisodeSources(_malId: string, animeTitle: string, epis
     .replace(/\s+/g, '-')
     .toLowerCase()
   const candidates = await Promise.allSettled([
-    aniplay.fetchHD3Stream(safeTitle, episode).then((url: string) => ({ name: 'HD-1', url })),
-    aniplay.fetchHD6Stream(safeTitle, episode).then((url: string) => ({ name: 'HD-2', url })),
+    fetchHD3Stream(safeTitle, episode).then((url: string) => ({ name: 'HD-1', url })),
+    fetchHD6Stream(safeTitle, episode).then((url: string) => ({ name: 'HD-2', url })),
   ])
   return candidates
     .filter(r => r.status === 'fulfilled' && r.value.url)

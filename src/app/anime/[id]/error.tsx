@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
-export default function Error({
+export default function AnimeError({
   error,
   unstable_retry,
 }: {
@@ -16,8 +16,10 @@ export default function Error({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
-      <h2 className="text-2xl font-bold">Algo salió mal</h2>
-      <p className="text-muted-foreground">No pudimos cargar los animes. Intenta de nuevo.</p>
+      <h2 className="text-2xl font-bold">Error al cargar el anime</h2>
+      <p className="text-muted-foreground">
+        No pudimos cargar la información de este anime. Intenta de nuevo.
+      </p>
       <Button onClick={unstable_retry}>Reintentar</Button>
     </div>
   )
