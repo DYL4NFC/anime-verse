@@ -1,16 +1,13 @@
-import {
-  fetchHD1Stream,
-  fetchHD2Stream,
-  fetchHD3Stream,
-  fetchHD5Stream,
-  fetchHD6Stream,
-} from 'aniplay'
+import { PROVIDERS, resolveOrder, type ProviderContext, type Lang } from './providers'
+import { probeUrl, recordResult, isDegraded, getHealthSnapshot } from './providerHealth'
 
 const PROVIDER_TIMEOUT = 5_000
 
 export interface EpisodeSource {
+  id: string
   name: string
   url: string
+  kind: 'iframe'
 }
 
 export interface EpisodeSourcesResult {
@@ -26,22 +23,31 @@ function slugifyTitle(title: string): string {
     .toLowerCase()
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms),
-    ),
-  ])
+/** Priority order with degraded (3+ consecutive failures) providers pushed to the back, self-healing on next success. */
+function getAttemptOrder() {
+  const order = resolveOrder()
+  const sorted = [...PROVIDERS].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
+  const healthy = sorted.filter(p => !isDegraded(p.id))
+  const degraded = sorted.filter(p => isDegraded(p.id))
+  return [...healthy, ...degraded]
 }
 
-async function tryProvider<T>(
-  name: string,
-  fn: () => Promise<T>,
-): Promise<T | null> {
+async function resolveSource(
+  provider: (typeof PROVIDERS)[number],
+  ctx: ProviderContext,
+): Promise<EpisodeSource | null> {
   try {
-    return await withTimeout(fn(), PROVIDER_TIMEOUT)
+    const url = await provider.resolve(ctx)
+    if (!url) return null
+
+    const { status, latencyMs } = await probeUrl(url, PROVIDER_TIMEOUT)
+    recordResult(provider.id, status, latencyMs)
+
+    if (status === 'down' || status === 'error' || status === 'timeout') return null
+
+    return { id: provider.id, name: provider.label, url, kind: provider.kind }
   } catch {
+    recordResult(provider.id, 'error', 0)
     return null
   }
 }
@@ -54,87 +60,32 @@ export async function getEpisodeSources(params: {
 }): Promise<EpisodeSourcesResult> {
   const { malId, title, episode, anilistId } = params
   const safeTitle = slugifyTitle(title)
+  const attemptOrder = getAttemptOrder()
 
-  const subPromises: Promise<EpisodeSource | null>[] = []
-  const dubPromises: Promise<EpisodeSource | null>[] = []
-
-  if (anilistId) {
-    subPromises.push(
-      tryProvider('HD-1 SUB', () =>
-        fetchHD1Stream(anilistId, episode, 'sub').then(url => ({
-          name: 'HD-1',
-          url,
-        })),
-      ),
-    )
-    subPromises.push(
-      tryProvider('HD-2 SUB', () =>
-        fetchHD2Stream(anilistId, episode, 'sub').then(url => ({
-          name: 'HD-2',
-          url,
-        })),
-      ),
-    )
-
-    dubPromises.push(
-      tryProvider('HD-1 DUB', () =>
-        fetchHD1Stream(anilistId, episode, 'dub').then(url => ({
-          name: 'HD-1',
-          url,
-        })),
-      ),
-    )
-    dubPromises.push(
-      tryProvider('HD-2 DUB', () =>
-        fetchHD2Stream(anilistId, episode, 'dub').then(url => ({
-          name: 'HD-2',
-          url,
-        })),
-      ),
-    )
+  function buildPromises(lang: Lang) {
+    return attemptOrder
+      .filter(p => p.supports.includes(lang))
+      .filter(p => !p.requiresAnilistId || !!anilistId)
+      .map(p => {
+        const ctx: ProviderContext = { malId, title, safeTitle, episode, anilistId, lang }
+        return resolveSource(p, ctx)
+      })
   }
 
-  subPromises.push(
-    tryProvider('HD-3', () =>
-      fetchHD3Stream(safeTitle, episode).then(url => ({
-        name: 'HD-3',
-        url,
-      })),
-    ),
-  )
-  subPromises.push(
-    tryProvider('HD-5', () =>
-      fetchHD5Stream(malId, episode).then(url => ({
-        name: 'HD-5',
-        url,
-      })),
-    ),
-  )
-  subPromises.push(
-    tryProvider('HD-6', () =>
-      fetchHD6Stream(safeTitle, episode).then(url => ({
-        name: 'HD-6',
-        url,
-      })),
-    ),
-  )
+  const [subResults, dubResults] = await Promise.all([
+    Promise.allSettled(buildPromises('sub')),
+    Promise.allSettled(buildPromises('dub')),
+  ])
 
-  const allSubResults = await Promise.allSettled(subPromises)
-  const allDubResults = await Promise.allSettled(dubPromises)
+  const extract = (results: PromiseSettledResult<EpisodeSource | null>[]) =>
+    results
+      .filter(
+        (r): r is PromiseFulfilledResult<EpisodeSource> =>
+          r.status === 'fulfilled' && r.value !== null && r.value.url.length > 0,
+      )
+      .map(r => r.value)
 
-  const sub = allSubResults
-    .filter(
-      (r): r is PromiseFulfilledResult<EpisodeSource> =>
-        r.status === 'fulfilled' && r.value !== null && r.value.url.length > 0,
-    )
-    .map(r => r.value)
-
-  const dub = allDubResults
-    .filter(
-      (r): r is PromiseFulfilledResult<EpisodeSource> =>
-        r.status === 'fulfilled' && r.value !== null && r.value.url.length > 0,
-    )
-    .map(r => r.value)
-
-  return { sub, dub }
+  return { sub: extract(subResults), dub: extract(dubResults) }
 }
+
+export { getHealthSnapshot }

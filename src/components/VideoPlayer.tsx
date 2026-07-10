@@ -38,18 +38,32 @@ export function VideoPlayer({
 
   const currentSources = lang === 'sub' ? subSources : dubSources
 
-  const activeUrl = useMemo(() => {
-    if (selectedServer) {
-      const found = currentSources.find(s => s.name === selectedServer)
-      if (found) return found.url
+  // Effective pick: explicit user choice > last server that worked for this browser > first available.
+  const effectiveServer = useMemo(() => {
+    if (selectedServer && currentSources.some(s => s.name === selectedServer)) {
+      return selectedServer
     }
-    return currentSources[0]?.url || null
-  }, [selectedServer, currentSources])
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem(`av:lastServer:${lang}`)
+      if (saved && currentSources.some(s => s.name === saved)) return saved
+    }
+    return currentSources[0]?.name ?? null
+  }, [selectedServer, currentSources, lang])
+
+  const activeUrl = useMemo(() => {
+    const found = currentSources.find(s => s.name === effectiveServer)
+    return found?.url ?? currentSources[0]?.url ?? null
+  }, [effectiveServer, currentSources])
 
   const handleLangChange = (newLang: 'sub' | 'dub') => {
     setLang(newLang)
     setSelectedServer(null)
     onLangChange?.(newLang)
+  }
+
+  const rememberServer = (name: string) => {
+    if (!name) return
+    window.localStorage.setItem(`av:lastServer:${lang}`, name)
   }
 
   return (
@@ -62,6 +76,7 @@ export function VideoPlayer({
             allowFullScreen
             allow="autoplay; encrypted-media; picture-in-picture"
             title={title}
+            onLoad={() => rememberServer(effectiveServer || '')}
           />
         ) : showTrailer ? (
           <iframe
@@ -104,14 +119,22 @@ export function VideoPlayer({
             {currentSources.map((src) => (
               <button
                 key={src.name}
-                onClick={() => setSelectedServer(src.name)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  selectedServer === src.name
+                onClick={() => {
+                  setSelectedServer(src.name)
+                  rememberServer(src.name)
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5 ${
+                  effectiveServer === src.name
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted hover:bg-muted/80'
                 }`}
               >
                 {src.name}
+                {src.name === 'HD-1' && (
+                  <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    Recomendado
+                  </span>
+                )}
               </button>
             ))}
           </div>
