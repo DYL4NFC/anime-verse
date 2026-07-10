@@ -1,5 +1,6 @@
 import { fetchAnimeById } from '@/lib/jikanApi'
-import { getEpisodeSources } from '@/lib/videoApi'
+import { getAnilistId } from '@/lib/anilistApi'
+import { getEpisodeSources, type EpisodeSourcesResult } from '@/lib/videoApi'
 import { notFound } from 'next/navigation'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import Link from 'next/link'
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic'
 
 interface WatchPageProps {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ ep?: string }>
+  searchParams: Promise<{ ep?: string; lang?: string }>
 }
 
 export async function generateMetadata({ params, searchParams }: WatchPageProps): Promise<Metadata> {
@@ -33,8 +34,9 @@ export async function generateMetadata({ params, searchParams }: WatchPageProps)
 
 export default async function WatchPage({ params, searchParams }: WatchPageProps) {
   const { id } = await params
-  const { ep } = await searchParams
+  const { ep, lang } = await searchParams
   const epNum = parseInt(ep || '1', 10)
+  const defaultLang = lang === 'dub' ? 'dub' : 'sub'
 
   const animeData = await fetchAnimeById(id)
   if (!animeData) notFound()
@@ -42,12 +44,18 @@ export default async function WatchPage({ params, searchParams }: WatchPageProps
   const anime = animeData.data
   const trailerUrl = anime.trailer?.embed_url || null
 
-  let externalSources: { name: string; url: string }[] = []
+  const anilistId = await getAnilistId(anime.title)
+
+  let sources: EpisodeSourcesResult = { sub: [], dub: [] }
   try {
-    const sources = await getEpisodeSources(String(id), anime.title, epNum)
-    externalSources = sources
+    sources = await getEpisodeSources({
+      malId: String(anime.mal_id),
+      title: anime.title,
+      episode: epNum,
+      anilistId,
+    })
   } catch {
-    externalSources = []
+    sources = { sub: [], dub: [] }
   }
 
   return (
@@ -66,8 +74,10 @@ export default async function WatchPage({ params, searchParams }: WatchPageProps
 
       <VideoPlayer
         trailerUrl={trailerUrl}
-        externalSources={externalSources}
+        subSources={sources.sub}
+        dubSources={sources.dub}
         title={`${anime.title} Ep ${epNum}`}
+        defaultLang={defaultLang}
       />
     </div>
   )

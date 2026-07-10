@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
-import { getEpisodeSources } from '@/lib/videoApi'
+import { getAnilistId } from '@/lib/anilistApi'
+import { getEpisodeSources, type EpisodeSourcesResult } from '@/lib/videoApi'
 import { fetchAnimeById } from '@/lib/jikanApi'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic'
 
 interface WatchPageProps {
   params: Promise<{ id: string; episode: string }>
+  searchParams: Promise<{ lang?: string }>
 }
 
 export async function generateMetadata({ params }: WatchPageProps): Promise<Metadata> {
@@ -26,16 +28,32 @@ export async function generateMetadata({ params }: WatchPageProps): Promise<Meta
   }
 }
 
-export default async function WatchPage({ params }: WatchPageProps) {
+export default async function WatchPage({ params, searchParams }: WatchPageProps) {
   const { id, episode } = await params
+  const { lang } = await searchParams
   const episodeNum = parseInt(episode, 10)
   if (isNaN(episodeNum)) notFound()
+
+  const defaultLang = lang === 'dub' ? 'dub' : 'sub'
 
   const data = await fetchAnimeById(id)
   if (!data?.data) notFound()
 
   const anime = data.data
-  const externalSources = await getEpisodeSources(String(anime.mal_id), anime.title, episodeNum)
+
+  const anilistId = await getAnilistId(anime.title)
+
+  let sources: EpisodeSourcesResult = { sub: [], dub: [] }
+  try {
+    sources = await getEpisodeSources({
+      malId: String(anime.mal_id),
+      title: anime.title,
+      episode: episodeNum,
+      anilistId,
+    })
+  } catch {
+    sources = { sub: [], dub: [] }
+  }
 
   const trailerEmbed = anime.trailer?.embed_url
     ? anime.trailer.embed_url.replace('autoplay=1', 'autoplay=0')
@@ -50,8 +68,10 @@ export default async function WatchPage({ params }: WatchPageProps) {
 
       <VideoPlayer
         trailerUrl={trailerEmbed}
-        externalSources={externalSources}
+        subSources={sources.sub}
+        dubSources={sources.dub}
         title={`${anime.title} - Ep ${episodeNum}`}
+        defaultLang={defaultLang}
       />
 
       <div className="flex justify-between items-center text-sm">

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { ExternalLink, Tv, PlayCircle } from 'lucide-react'
+import { Tv, PlayCircle } from 'lucide-react'
 
 interface Source {
   name: string
@@ -11,19 +11,61 @@ interface Source {
 
 interface VideoPlayerProps {
   trailerUrl: string | null
-  externalSources: Source[]
+  subSources: Source[]
+  dubSources: Source[]
   title: string
+  defaultLang?: 'sub' | 'dub'
+  onLangChange?: (lang: 'sub' | 'dub') => void
 }
 
-export function VideoPlayer({ trailerUrl, externalSources, title }: VideoPlayerProps) {
+export function VideoPlayer({
+  trailerUrl,
+  subSources,
+  dubSources,
+  title,
+  defaultLang = 'sub',
+  onLangChange,
+}: VideoPlayerProps) {
+  const [lang, setLang] = useState<'sub' | 'dub'>(() => {
+    if (defaultLang === 'dub' && dubSources.length > 0) return 'dub'
+    if (subSources.length > 0) return 'sub'
+    if (dubSources.length > 0) return 'dub'
+    return 'sub'
+  })
+
+  const [selectedServer, setSelectedServer] = useState<string | null>(null)
   const [showTrailer, setShowTrailer] = useState(false)
+
+  const currentSources = lang === 'sub' ? subSources : dubSources
+
+  const activeUrl = useMemo(() => {
+    if (selectedServer) {
+      const found = currentSources.find(s => s.name === selectedServer)
+      if (found) return found.url
+    }
+    return currentSources[0]?.url || null
+  }, [selectedServer, currentSources])
+
+  const handleLangChange = (newLang: 'sub' | 'dub') => {
+    setLang(newLang)
+    setSelectedServer(null)
+    onLangChange?.(newLang)
+  }
 
   return (
     <div className="space-y-4">
       <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
-        {showTrailer && trailerUrl ? (
+        {activeUrl ? (
           <iframe
-            src={trailerUrl}
+            src={activeUrl}
+            className="w-full h-full"
+            allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture"
+            title={title}
+          />
+        ) : showTrailer ? (
+          <iframe
+            src={trailerUrl || ''}
             className="w-full h-full"
             allowFullScreen
             allow="autoplay; encrypted-media; picture-in-picture"
@@ -33,7 +75,7 @@ export function VideoPlayer({ trailerUrl, externalSources, title }: VideoPlayerP
           <div className="flex flex-col items-center justify-center h-full gap-4 text-white px-4 text-center">
             <PlayCircle className="h-16 w-16 text-muted-foreground" />
             <p className="text-sm text-muted-foreground max-w-md">
-              Elige un servidor externo para ver el episodio, o mira el tráiler oficial.
+              选择一个服务器观看，或点击下方切换语言
             </p>
             {trailerUrl && (
               <Button
@@ -43,42 +85,76 @@ export function VideoPlayer({ trailerUrl, externalSources, title }: VideoPlayerP
                 onClick={() => setShowTrailer(true)}
               >
                 <Tv className="h-4 w-4" />
-                Ver tráiler oficial
+                观看预告
               </Button>
             )}
           </div>
         )}
       </div>
 
-      {externalSources.length > 0 && (
+      <LanguageSelector
+        lang={lang}
+        onLangChange={handleLangChange}
+      />
+
+      {currentSources.length > 0 && (
         <div className="rounded-lg border p-4 space-y-3">
-          <p className="text-sm font-medium">Ver episodio en servidor externo:</p>
+          <p className="text-sm font-medium">选择服务器：</p>
           <div className="flex flex-wrap gap-2">
-            {externalSources.map((src) => (
-              <a
+            {currentSources.map((src) => (
+              <button
                 key={src.name}
-                href={src.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                onClick={() => setSelectedServer(src.name)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  selectedServer === src.name
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted hover:bg-muted/80'
+                }`}
               >
-                <Button variant="outline" size="sm" className="gap-2">
-                  <ExternalLink className="h-3 w-3" />
-                  {src.name}
-                </Button>
-              </a>
+                {src.name}
+              </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Los servidores externos abren en una nueva pestaña.
-          </p>
         </div>
       )}
 
-      {externalSources.length === 0 && !trailerUrl && (
+      {currentSources.length === 0 && !trailerUrl && (
         <p className="text-sm text-muted-foreground text-center py-4">
-          No hay fuentes disponibles para este episodio.
+          暂无可用服务器，请稍后再试
         </p>
       )}
+    </div>
+  )
+}
+
+interface LanguageSelectorProps {
+  lang: 'sub' | 'dub'
+  onLangChange: (lang: 'sub' | 'dub') => void
+}
+
+function LanguageSelector({ lang, onLangChange }: LanguageSelectorProps) {
+  return (
+    <div className="flex gap-2">
+      <button
+        onClick={() => onLangChange('sub')}
+        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+          lang === 'sub'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted hover:bg-muted/80'
+        }`}
+      >
+        字幕版
+      </button>
+      <button
+        onClick={() => onLangChange('dub')}
+        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+          lang === 'dub'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted hover:bg-muted/80'
+        }`}
+      >
+        配音版
+      </button>
     </div>
   )
 }
