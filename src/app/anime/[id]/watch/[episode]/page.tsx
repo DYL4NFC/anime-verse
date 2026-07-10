@@ -5,6 +5,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { VideoPlayer } from '@/components/VideoPlayer'
 
+export const dynamic = 'force-dynamic'
+
 interface WatchPageProps {
   params: Promise<{ id: string; episode: string }>
 }
@@ -13,6 +15,7 @@ export async function generateMetadata({ params }: WatchPageProps): Promise<Meta
   const { id, episode } = await params
   try {
     const data = await fetchAnimeById(id)
+    if (!data) return { title: `Episodio ${episode} | AnimeVerse` }
     const title = data.data?.title || 'Anime'
     return {
       title: `Episodio ${episode} - ${title} | AnimeVerse`,
@@ -28,7 +31,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
   const episodeNum = parseInt(episode, 10)
   if (isNaN(episodeNum)) notFound()
 
-  const data = await fetchAnimeById(id).catch(() => null)
+  const data = await fetchAnimeById(id)
   if (!data?.data) notFound()
 
   const anime = data.data

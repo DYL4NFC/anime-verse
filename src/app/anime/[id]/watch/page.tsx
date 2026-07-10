@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+
 interface WatchPageProps {
   params: Promise<{ id: string }>
   searchParams: Promise<{ ep?: string }>
@@ -18,6 +20,7 @@ export async function generateMetadata({ params, searchParams }: WatchPageProps)
   const epNum = parseInt(ep || '1', 10)
   try {
     const data = await fetchAnimeById(id)
+    if (!data) return { title: 'Reproductor - AnimeVerse' }
     const anime = data.data
     return {
       title: `${anime.title} - Episodio ${epNum} - AnimeVerse`,
@@ -33,14 +36,10 @@ export default async function WatchPage({ params, searchParams }: WatchPageProps
   const { ep } = await searchParams
   const epNum = parseInt(ep || '1', 10)
 
-  let anime
-  try {
-    const data = await fetchAnimeById(id)
-    anime = data.data
-  } catch {
-    notFound()
-  }
+  const animeData = await fetchAnimeById(id)
+  if (!animeData) notFound()
 
+  const anime = animeData.data
   const trailerUrl = anime.trailer?.embed_url || null
 
   let externalSources: { name: string; url: string }[] = []

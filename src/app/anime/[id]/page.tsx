@@ -13,6 +13,7 @@ export async function generateMetadata({ params }: AnimePageProps): Promise<Meta
   const { id } = await params
   try {
     const data = await fetchAnimeById(id)
+    if (!data) return { title: 'Anime no encontrado - AnimeVerse' }
     const anime = data.data
     return {
       title: `${anime.title} - AnimeVerse`,
@@ -32,14 +33,10 @@ export default async function AnimePage({ params, searchParams }: AnimePageProps
   const { id } = await params
   const { ep } = await searchParams
 
-  let anime
-  try {
-    const data = await fetchAnimeById(id)
-    anime = data.data
-  } catch {
-    notFound()
-  }
+  const animeData = await fetchAnimeById(id)
+  if (!animeData) notFound()
 
+  const anime = animeData.data
   const epPage = parseInt(ep || '1', 10)
 
   let episodes: unknown[] = []

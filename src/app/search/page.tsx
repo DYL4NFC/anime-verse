@@ -34,8 +34,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const year = params.year ? parseInt(params.year, 10) : undefined
   const status = params.status as 'airing' | 'complete' | 'upcoming' | undefined
 
-  const genresData = await fetchGenres()
-  const allGenres = genresData.data || []
+  let allGenres: { mal_id: number; name: string }[] = []
+  try {
+    const genresData = await fetchGenres()
+    allGenres = genresData.data || []
+  } catch {
+    console.error('[SearchPage] Failed to fetch genres')
+  }
 
   let results: Anime[] = []
   let error: string | null = null
